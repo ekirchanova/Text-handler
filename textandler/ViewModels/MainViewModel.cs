@@ -1,9 +1,6 @@
-using System;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
@@ -181,12 +178,10 @@ namespace textHandlerApp.ViewModels
 
 		private void ClearFiles()
 		{
-			inputFiles = Array.Empty<string>();
-			outputFile = "";
-
+			InputFiles = Array.Empty<string>();
+			OutputFile = "";
         }
 
-		private Task processingTask;
 		private CancellationTokenSource cancellationTokenSource;
 		private async Task ProcessAsync()
 		{
@@ -205,23 +200,21 @@ namespace textHandlerApp.ViewModels
 				ProgressValue = v;
 				StatusText = total > 1 ? $"Processed {v}% of {total} files" : $"Processed {v}%";
 			});
-			processingTask = Task.Run(() =>
+
+			try
 			{
-				try
-				{
-					textHandler.ProcessFiles(progress, cancellationTokenSource.Token);
-					Application.Current.Dispatcher.Invoke(() => {
-						StatusText = Status.Done.GetDescription();
-						ClearFiles();
-					});
-				}
-				catch (Exception ex)
-				{
-					Application.Current.Dispatcher.Invoke(() => StatusText = ex.Message);
-				}
-			});
-			await processingTask;
-			IsProcessing = false;
+				await textHandler.ProcessFiles(progress, cancellationTokenSource.Token);
+				ClearFiles();
+                StatusText = Status.NeedChooseProcessFile.GetDescription();
+            }
+			catch (Exception ex)
+			{
+				StatusText = ex.Message;
+			}
+			finally
+			{
+				IsProcessing = false;
+			}
 		}
 
 		private void Cancel()
@@ -235,7 +228,7 @@ namespace textHandlerApp.ViewModels
 
 		private static string[] BuildOutputFilesArray(string firstOutputPath, int count)
 		{
-			if (count <= 1) return new[] { firstOutputPath };
+			if (count == 1) return new[] { firstOutputPath };
 			var directory = Path.GetDirectoryName(firstOutputPath);
 			var filename = Path.GetFileNameWithoutExtension(firstOutputPath);
 			var ext = Path.GetExtension(firstOutputPath);

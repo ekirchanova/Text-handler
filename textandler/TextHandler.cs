@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.IO;
+using textHandlerClass.ProcesingFiles;
 
 namespace textHandlerClass
 {
@@ -8,11 +9,10 @@ namespace textHandlerClass
         private static char[] delimiters;
         static TextHandler()
         {
-            delimiters = new char[]{ ' ', '\t' };
+            delimiters = new char[]{ ' ', '\t', '\n', '\r' };
         }
         public uint MinAmountOfSymbols { get; set; } = 3;
-        public bool NeedDeletePunctuationMarks { get; set; } = true;
-
+        public bool NeedDeletePunctuationMarks { get; set; } = false;
         public string[] InputFiles { get; set; }
         public string[] OutputFiles { get; set; }
         public TextHandler() {}
@@ -21,13 +21,13 @@ namespace textHandlerClass
             MinAmountOfSymbols = minAmountOfSymbols;
             NeedDeletePunctuationMarks = needDeletePunctuationMarks;
         }
-        private string DeletePunctuationMarks(string line)
+        private static string DeletePunctuationMarks(string line)
         {
             return new string(line.Where(c => !char.IsPunctuation(c)).ToArray());
         }
         private string ProcessLine(string line)
         {
-            if (line.IsWhiteSpace()) return string.Empty;
+            if (string.IsNullOrWhiteSpace(line)) return string.Empty;
 
             if (NeedDeletePunctuationMarks)
                 line = DeletePunctuationMarks(line);
@@ -37,60 +37,24 @@ namespace textHandlerClass
             return string.Join(" ", filteredWords);
         }
 
-        public bool CheckFileProcessPosibility()
+        private bool CheckFileProcessPosibility(string[] inputFiles, string[] outputFiles)
         {
-            return InputFiles.Length > 0 && OutputFiles.Length > 0;
-        }
-        public void HandleSingleFile(string InputFile,  string OutputFile, CancellationToken cancellationToken)
-        {
-            if (!File.Exists(InputFile))
-                throw new FileNotFoundException($"Input file not found: {InputFiles}");
-            var lines = File.ReadAllLines(InputFile);
-            var results = new ConcurrentBag<string>();
+            if (inputFiles == null || outputFiles == null)
+                return false;
 
-            Parallel.ForEach(lines, new ParallelOptions { CancellationToken = cancellationToken }, line =>
-            {
-                try
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    string processedLine = ProcessLine(line);
-                    results.Add(processedLine);
-                }
-                catch (OperationCanceledException)
-                {
-                    throw; 
-                }
-                catch (Exception e)
-                {
-                    results.Add(e.Message);
-                }
-            });
-            string outputDir = Path.GetDirectoryName(OutputFile);
-            if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
-                Directory.CreateDirectory(outputDir);
-            File.WriteAllLines(OutputFile, results);
+            return inputFiles.Length > 0 && outputFiles.Length > 0 && outputFiles.Length == inputFiles.Length;
         }
 
-        public void HandleFilesMas(string[] InputFiles, string[] OutputFiles, IProgress<int> progress, CancellationToken cancellationToken)
+        public async Task ProcessFiles(IProgress<int> progress, CancellationToken cancellationToken)
         {
-            int size = InputFiles.Length;
-            if (OutputFiles.Length != size)
-                throw new ArgumentException("Output files count must match input files count.");
+            if (!CheckFileProcessPosibility(InputFiles, OutputFiles))
+                throw new ArgumentException("Don't correct input or(and) output files.");
 
-            int completed = 0;
-            Parallel.For(0, size, new ParallelOptions { CancellationToken = cancellationToken }, i =>
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                HandleSingleFile(InputFiles[i], OutputFiles[i], cancellationToken);
-                int done = Interlocked.Increment(ref completed);
-                int percent = (int)Math.Round((double)done * 100 / size);
-                progress?.Report(percent);
-            });
-        }
-
-        public void ProcessFiles(IProgress<int> progress, CancellationToken cancellationToken)
-        {
-            HandleFilesMas(InputFiles, OutputFiles, progress, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            var processor = new ParallelProcessFile();
+            await processor.ProcessFilesAsync(InputFiles, OutputFiles,
+                (inputPath, chunkNumber, chunk) => Task.FromResult(ProcessLine(chunk)), progress,
+                cancellationToken);
         }
         
     }

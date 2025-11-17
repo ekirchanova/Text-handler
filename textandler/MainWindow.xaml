@@ -3,7 +3,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:textHandlerApp"
         mc:Ignorable="d"
         Title="Text handler" Height="450" Width="800" ResizeMode="NoResize">
     <Grid>
@@ -24,7 +23,7 @@
             <StackPanel Margin="80,0,50,0" Background="LightPink" Width="300" Height="140" >
                 <TextBlock Text="Min amount of symbols:" Width="300" Height="52" Foreground="Black" FontSize="20" />
                 <TextBox Text="{Binding MinAmountOfSymbols, UpdateSourceTrigger=PropertyChanged}"  Height="46"  Width="237" Foreground="Black" FontSize="20" PreviewTextInput="NumberValidationTextBox" MaxLength="3" RenderTransformOrigin="0.5,0.901"/>
-                <CheckBox Content="Delete punctuation marks" Background="Black" Foreground="Black" HorizontalAlignment="Left" VerticalAlignment="Top" Height="34" Width="300" FontSize="20" IsChecked="{Binding NeedDeletePunctuationMarks}" />
+                <CheckBox Content="Delete punctuation marks" Background="White" Foreground="Black" HorizontalAlignment="Left" VerticalAlignment="Top" Height="34" Width="300" FontSize="20" IsChecked="{Binding NeedDeletePunctuationMarks}" />
             </StackPanel>
 
         </StackPanel>
